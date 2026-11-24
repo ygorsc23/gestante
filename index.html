@@ -343,9 +343,9 @@
     window.addEventListener("load",(function(){setTimeout(loadElfsight,3500)}));
 </script>
 
-<!-- Identificacao do grupo de anuncios -->
+<!-- Identificacao do grupo de anuncios e evento de clique no WhatsApp -->
 <script>
-  document.addEventListener('DOMContentLoaded', function () {
+  (function () {
     // Codigos por grupo de anuncios. O fallback aceita qualquer utm_content
     // futuro sem precisar editar esta lista.
     var CODIGOS = {
@@ -354,23 +354,40 @@
       'licenca-maternidade': 'GT-LIC',
       'gestante-contrato-experiencia': 'GT-EXP'
     };
-    var p = new URLSearchParams(window.location.search);
-    var bruto = p.get('utm_content');
-    if (!bruto) return;
-    var g = CODIGOS[bruto] || bruto.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 12);
-    if (!g) return;
 
-    document.querySelectorAll('a[href*="api.whatsapp.com"], a[href*="wa.me"]').forEach(function (a) {
-      var u = new URL(a.href);
-      var texto = u.searchParams.get('text') || '';
-      if (texto.indexOf('[' + g + ']') === -1) {
-        u.searchParams.set('text', texto + ' [' + g + ']');
-        a.href = u.toString();
-        var onclick = a.getAttribute('onclick');
-        if (onclick) a.setAttribute('onclick', onclick.replace(/https:\/\/api\.whatsapp\.com[^'"]+/, u.toString()));
-      }
+    function codigoDoGrupo() {
+      var bruto = new URLSearchParams(window.location.search).get('utm_content');
+      if (!bruto) return '';
+      return CODIGOS[bruto] || bruto.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 12);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      var g = codigoDoGrupo();
+      if (!g) return;
+      document.querySelectorAll('a[href*="api.whatsapp.com"], a[href*="wa.me"]').forEach(function (a) {
+        var u = new URL(a.href);
+        var texto = u.searchParams.get('text') || '';
+        if (texto.indexOf('[' + g + ']') === -1) {
+          u.searchParams.set('text', texto + ' [' + g + ']');
+          a.href = u.toString();
+          var onclick = a.getAttribute('onclick');
+          if (onclick) a.setAttribute('onclick', onclick.replace(/https:\/\/api\.whatsapp\.com[^'"]+/, u.toString()));
+        }
+      });
     });
-  }, true);
+
+    // Evento de leitura no GA4: separa clique no botao de conversa de verdade.
+    document.addEventListener('click', function (e) {
+      var a = e.target && e.target.closest ? e.target.closest('a[href*="api.whatsapp.com"], a[href*="wa.me"]') : null;
+      if (!a || typeof gtag !== 'function') return;
+      var params = new URLSearchParams(window.location.search);
+      gtag('event', 'whatsapp_click', {
+        pagina: window.location.pathname,
+        grupo: codigoDoGrupo() || '',
+        tem_gclid: params.get('gclid') ? 'sim' : 'nao'
+      });
+    }, true);
+  })();
 </script>
 
 </body>
